@@ -5,8 +5,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,7 +57,11 @@ public class HoyoverseService {
                 return "🎁 No promocodes found at the moment.";
             }
 
-            StringBuilder sb = new StringBuilder("🎁 Active Promoсodes for " + game.toUpperCase() + ":\n\n");
+            StringBuilder sb = new StringBuilder("🎁 Active Promoсodes for " + capitalizeGameName(game) + ":\n\n");
+
+            InlineKeyboardButton markup = new InlineKeyboardButton();
+            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
             for (JsonNode codeNode : codesArray) {
                 String code = codeNode.path("code").asText();
                 JsonNode rewardsArray = codeNode.path("rewards");
@@ -66,10 +73,12 @@ public class HoyoverseService {
                     }
                 }
                 String reward = rewardsBuilder.toString();
-                sb.append("🔑 Code: ").append(code).append("\n");
+                sb.append("🔑 ").append(code).append("\n");
                 sb.append("🎁 Reward: ").append(reward).append("\n");
                 sb.append("\n");
             }
+
+            sb.append("\n✨ Activate promocodes here: ").append(getActivationLink(game));
             return sb.toString();
 
         } catch (IOException | InterruptedException e) {
@@ -113,5 +122,25 @@ public class HoyoverseService {
             e.printStackTrace();
             return "⚠ Error fetching news.";
         }
+    }
+
+    private String getActivationLink(String game) {
+        return switch (game) {
+            case "genshin" -> "https://genshin.hoyoverse.com/en/gift";
+            case "starrail" -> "https://hsr.hoyoverse.com/gift";
+            case "zzz" -> "https://zenless.hoyoverse.com/en/gift";
+            case "honkai3rd" -> "https://honkaiimpact3.hoyoverse.com/gift";
+            default -> "https://account.hoyoverse.com";
+        };
+    }
+
+    private String capitalizeGameName(String game) {
+        return switch (game) {
+            case "genshin" -> "Genshin Impact";
+            case "starrail" -> "Honkai: Star Rail";
+            case "zzz" -> "Zenless Zone Zero";
+            case "honkai3rd" -> "Honkai Impact 3rd";
+            default -> game;
+        };
     }
 }
