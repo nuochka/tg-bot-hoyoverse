@@ -21,8 +21,25 @@ public class HoyoverseService {
         this.mapper = new ObjectMapper();
     }
 
-    public String fetchPromocodes() {
-        String url = "https://api.ennead.cc/mihoyo/genshin/codes";
+    public String fetchPromocodes(String game) {
+        String url;
+
+        switch (game.toLowerCase()) {
+            case "genshin":
+                url = "https://api.ennead.cc/mihoyo/genshin/codes";
+                break;
+            case "starrail":
+                url = "https://api.ennead.cc/mihoyo/starrail/codes";
+                break;
+            case "zzz":
+                url = "https://api.ennead.cc/mihoyo/zenless/codes";
+                break;
+            case "honkai3rd":
+                url = "https://api.ennead.cc/mihoyo/honkai3rd/codes";
+                break;
+            default:
+                return "⚠ Unknown game: " + game;
+        }
 
         try {
             HttpResponse<String> response = client.send(
@@ -37,7 +54,7 @@ public class HoyoverseService {
                 return "🎁 No promocodes found at the moment.";
             }
 
-            StringBuilder sb = new StringBuilder("🎁 Active Genshin Promoсodes:\n\n");
+            StringBuilder sb = new StringBuilder("🎁 Active Promoсodes for " + game.toUpperCase() + ":\n\n");
             for (JsonNode codeNode : codesArray) {
                 String code = codeNode.path("code").asText();
                 JsonNode rewardsArray = codeNode.path("rewards");
@@ -51,6 +68,7 @@ public class HoyoverseService {
                 String reward = rewardsBuilder.toString();
                 sb.append("🔑 Code: ").append(code).append("\n");
                 sb.append("🎁 Reward: ").append(reward).append("\n");
+                sb.append("\n");
             }
             return sb.toString();
 
