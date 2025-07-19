@@ -1,29 +1,29 @@
 package com.hoyoverse.tg_bot;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
+import com.hoyoverse.tg_bot.service.SubscribeService;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
-import com.hoyoverse.tg_bot.service.HoyoverseService;
+import com.hoyoverse.tg_bot.service.NewsService;
+import com.hoyoverse.tg_bot.service.PromocodesService;
 
 @Component
 public class HoyoBot extends TelegramLongPollingBot {
 
-    private final HoyoverseService hoyoverseService;
+    private final SubscribeService subscribeService;
+
+    private final PromocodesService promocodesService;
+    private final NewsService newsService;
 
     @Autowired
-    public HoyoBot(HoyoverseService hoyoverseService) {
-        this.hoyoverseService = hoyoverseService;
+    public HoyoBot(PromocodesService promocodesService, NewsService newsService, SubscribeService subscribeService) {
+        this.promocodesService = promocodesService;
+        this.newsService = newsService;
+        this.subscribeService = subscribeService;
     }
 
     @Override
@@ -47,20 +47,50 @@ public class HoyoBot extends TelegramLongPollingBot {
             switch (userMessage) {
                 case "/start":
                     replyText = """
-                            👋 Hello! I am a bot for Genshin Impact and ZZZ.
+                            👋 Hello! I am a bot for Genshin Impact and other HoYoverse games.
                             📋 Available commands:
-                            /promocodes - 🎁 fresh promo codes
+                            /promocodes - 🎁 fresh promoсodes
                             /news - 📰 latest news
+                            /subscribe - 🔔 subscribe to promocodes
+                            /unsubscribe - 🚫 unsubscribe from promocodes
+                            /my_subscriptions - 📦 view your subscriptions
                             """;
                     break;
 
                 case "/promocodes":
-                    handleCodesCommand(update.getMessage().getChatId());
+                    SendMessage promoMessage = promocodesService.buildCodesCommandMessage(update.getMessage().getChatId());
+                    try {
+                        execute(promoMessage);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                    }
                     return;
 
                 case "/news":
-                    replyText = "📰 Here are the latest news:\n" + hoyoverseService.fetchLatestNews();
+                    replyText = "📰 Here are the latest news:\n" + newsService.fetchLatestNews();
                     break;
+
+                case "/subscribe":
+                    subscribeService.handleSubscribeCommand(chatId);
+                    return;
+
+                case "/unsubscribe":
+                    subscribeService.handleUnsubscribeCommand(chatId);
+                    return;
+
+                case "/my_subscriptions":
+                Set<String> subs = subscribeService.getSubscriptions(chatId);
+                if (subs.isEmpty()) {
+                    replyText = "📭 You are not subscribed to any games.";
+                } else {
+                    String formattedSubs = subs.stream()
+                        .map(this::capitalizeGameName)
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("none");
+
+                    replyText = "📦 You are subscribed to: " + formattedSubs;
+                }
+                break;
 
                 default:
                     replyText = "🤔 Unknown command. Try /start for the list.";
@@ -75,15 +105,20 @@ public class HoyoBot extends TelegramLongPollingBot {
 
             if(data.startsWith("codes_")) {
                 String game = data.substring("codes_".length());
-                String reply;
-                reply = hoyoverseService.fetchPromocodes(game);
-
+                String capitalizedName = capitalizeGameName(game);
+                String reply = promocodesService.fetchPromocodes(game, capitalizedName);
                 sendText(chatId, reply);
+            }
+
+            if (data.startsWith("sub_")) {
+                String game = data.substring("sub_".length());
+                subscribeService.subscribe(chatId, game);
+                sendText(chatId, "✅ You have subscribed to promocodes for " + capitalizeGameName(game) + "!");
             }
         }
     }
 
-    private void sendText(String chatId, String text) {
+    public void sendText(String chatId, String text) {
         SendMessage message = new SendMessage(chatId, text);
         try {
             execute(message);
@@ -92,43 +127,13 @@ public class HoyoBot extends TelegramLongPollingBot {
         }
     }
 
-   public void handleCodesCommand(Long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId.toString());
-        message.setText("🎮 Choose a game for getting promocodes");
-
-        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-
-        rows.add(Arrays.asList(
-            InlineKeyboardButton.builder()
-                .text("🌸 Genshin Impact")
-                .callbackData("codes_genshin")
-                .build(),
-            InlineKeyboardButton.builder()
-                .text("🔮 Zenless Zone Zero")
-                .callbackData("codes_zzz")
-                .build()
-        ));
-
-        rows.add(Arrays.asList(
-            InlineKeyboardButton.builder()
-                .text("🚀 Star Rail")
-                .callbackData("codes_starrail")
-                .build(),
-            InlineKeyboardButton.builder()
-                .text("⚔ Honkai Impact 3rd")
-                .callbackData("codes_honkai3rd")
-                .build()
-        ));
-
-        markup.setKeyboard(rows);
-        message.setReplyMarkup(markup);
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+     public String capitalizeGameName(String game) {
+        return switch (game) {
+            case "genshin" -> "Genshin Impact";
+            case "starrail" -> "Honkai: Star Rail";
+            case "zzz" -> "Zenless Zone Zero";
+            case "honkai3rd" -> "Honkai Impact 3rd";
+            default -> game;
+        };
     }
 }
