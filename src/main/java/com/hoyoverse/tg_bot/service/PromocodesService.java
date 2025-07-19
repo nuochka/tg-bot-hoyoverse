@@ -6,25 +6,26 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
-public class HoyoverseService {
+public class PromocodesService {
     private final HttpClient client;
     private final ObjectMapper mapper;
 
-    public HoyoverseService(){
+    public PromocodesService() {
         this.client = HttpClient.newHttpClient();
         this.mapper = new ObjectMapper();
     }
 
-    public String fetchPromocodes(String game) {
+    public String fetchPromocodes(String game, String capitalizedGameName) {
         String url;
 
         switch (game.toLowerCase()) {
@@ -57,10 +58,7 @@ public class HoyoverseService {
                 return "🎁 No promocodes found at the moment.";
             }
 
-            StringBuilder sb = new StringBuilder("🎁 Active Promoсodes for " + capitalizeGameName(game) + ":\n\n");
-
-            InlineKeyboardButton markup = new InlineKeyboardButton();
-            List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+            StringBuilder sb = new StringBuilder("🎁 Active Promoсodes for " + capitalizedGameName + ":\n\n");
 
             for (JsonNode codeNode : codesArray) {
                 String code = codeNode.path("code").asText();
@@ -74,8 +72,7 @@ public class HoyoverseService {
                 }
                 String reward = rewardsBuilder.toString();
                 sb.append("🔑 ").append(code).append("\n");
-                sb.append("🎁 Reward: ").append(reward).append("\n");
-                sb.append("\n");
+                sb.append("🎁 Reward: ").append(reward).append("\n\n");
             }
 
             sb.append("\n✨ Activate promocodes here: ").append(getActivationLink(game));
@@ -87,41 +84,40 @@ public class HoyoverseService {
         }
     }
 
-    public String fetchLatestNews() {
-        String url = "https://api.ennead.cc/mihoyo/genshin/news/info";
+    public SendMessage buildCodesCommandMessage(Long chatId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId.toString());
+        message.setText("🎮 Choose a game for getting promocodes");
 
-        try {
-            HttpResponse<String> response = client.send(
-                HttpRequest.newBuilder(URI.create(url)).GET().build(),
-                HttpResponse.BodyHandlers.ofString()
-            );
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-            System.out.println("API response: " + response.body());
+        rows.add(Arrays.asList(
+            InlineKeyboardButton.builder()
+                .text("🌸 Genshin Impact")
+                .callbackData("codes_genshin")
+                .build(),
+            InlineKeyboardButton.builder()
+                .text("🔮 Zenless Zone Zero")
+                .callbackData("codes_zzz")
+                .build()
+        ));
 
-            JsonNode root = mapper.readTree(response.body());
-            if (!root.isArray() || root.size() == 0) {
-                return "📰 No recent news found.";
-            }
+        rows.add(Arrays.asList(
+            InlineKeyboardButton.builder()
+                .text("🚀 Star Rail")
+                .callbackData("codes_starrail")
+                .build(),
+            InlineKeyboardButton.builder()
+                .text("⚔ Honkai Impact 3rd")
+                .callbackData("codes_honkai3rd")
+                .build()
+        ));
 
-            StringBuilder sb = new StringBuilder("📰 Latest News:\n\n");
-            int count = 0;
-            for (JsonNode news : root) {
-                if (++count > 5) break;
+        markup.setKeyboard(rows);
+        message.setReplyMarkup(markup);
 
-                String title = news.path("title").asText(null);
-                String link = news.path("url").asText(null);
-
-                if (title == null || link == null || title.isEmpty() || link.isEmpty()) {
-                    continue;
-                }
-
-                sb.append("• ").append(title).append("\n").append(link).append("\n\n");
-            }
-            return sb.toString();
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-            return "⚠ Error fetching news.";
-        }
+        return message;
     }
 
     private String getActivationLink(String game) {
@@ -133,14 +129,5 @@ public class HoyoverseService {
             default -> "https://account.hoyoverse.com";
         };
     }
-
-    private String capitalizeGameName(String game) {
-        return switch (game) {
-            case "genshin" -> "Genshin Impact";
-            case "starrail" -> "Honkai: Star Rail";
-            case "zzz" -> "Zenless Zone Zero";
-            case "honkai3rd" -> "Honkai Impact 3rd";
-            default -> game;
-        };
-    }
 }
+
