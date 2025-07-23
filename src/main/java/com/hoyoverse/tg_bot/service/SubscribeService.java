@@ -1,10 +1,6 @@
 package com.hoyoverse.tg_bot.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,14 +15,17 @@ public class SubscribeService {
 
     private final TelegramSenderService senderService;
     private final Map<String, Set<String>> userSubscriptions = new ConcurrentHashMap<>();
+    private final Set<String> notificationSubscribers = ConcurrentHashMap.newKeySet();
 
     @Autowired
     public SubscribeService(@Lazy TelegramSenderService senderService) {
         this.senderService = senderService;
     }
-    
-    public void subscribe(String chatId, String game){
-        userSubscriptions.computeIfAbsent(chatId, k -> ConcurrentHashMap.newKeySet()).add(game);
+
+    public void subscribe(String chatId, String game) {
+        userSubscriptions
+            .computeIfAbsent(chatId, k -> ConcurrentHashMap.newKeySet())
+            .add(game);
     }
 
     public void unsubscribe(String chatId, String game) {
@@ -62,21 +61,18 @@ public class SubscribeService {
                 .callbackData("sub_genshin")
                 .build()
         ));
-
         rows.add(Collections.singletonList(
             InlineKeyboardButton.builder()
                 .text("🚀 Star Rail")
                 .callbackData("sub_starrail")
                 .build()
         ));
-
         rows.add(Collections.singletonList(
             InlineKeyboardButton.builder()
                 .text("🌀 Zenless Zone Zero")
                 .callbackData("sub_zzz")
                 .build()
         ));
-
         rows.add(Collections.singletonList(
             InlineKeyboardButton.builder()
                 .text("⚔ Honkai Impact 3rd")
@@ -126,8 +122,8 @@ public class SubscribeService {
 
         senderService.sendMessage(message);
     }
-    
-    private String capitalizeGameName(String game) {
+
+    public String capitalizeGameName(String game) {
         return switch (game) {
             case "genshin" -> "Genshin Impact";
             case "starrail" -> "Honkai: Star Rail";
@@ -135,5 +131,17 @@ public class SubscribeService {
             case "honkai3rd" -> "Honkai Impact 3rd";
             default -> game;
         };
+    }
+
+    public void addNotificationSubscriber(String chatId) {
+        notificationSubscribers.add(chatId);
+    }
+
+    public void removeNotificationSubscriber(String chatId) {
+        notificationSubscribers.remove(chatId);
+    }
+
+    public Set<String> getNotificationSubscribers() {
+        return Collections.unmodifiableSet(notificationSubscribers);
     }
 }

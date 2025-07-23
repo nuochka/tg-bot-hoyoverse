@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import com.hoyoverse.tg_bot.service.NewsService;
+import com.hoyoverse.tg_bot.service.NotificationService;
 import com.hoyoverse.tg_bot.service.PromocodesService;
 
 @Component
@@ -18,12 +19,14 @@ public class HoyoBot extends TelegramLongPollingBot {
 
     private final PromocodesService promocodesService;
     private final NewsService newsService;
+    private final NotificationService notificationService;
 
     @Autowired
-    public HoyoBot(PromocodesService promocodesService, NewsService newsService, SubscribeService subscribeService) {
+    public HoyoBot(PromocodesService promocodesService, NewsService newsService, SubscribeService subscribeService, NotificationService notificationService) {
         this.promocodesService = promocodesService;
         this.newsService = newsService;
         this.subscribeService = subscribeService;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -54,6 +57,7 @@ public class HoyoBot extends TelegramLongPollingBot {
                             /subscribe - 🔔 subscribe to promocodes
                             /unsubscribe - 🚫 unsubscribe from promocodes
                             /my_subscriptions - 📦 view your subscriptions
+                            /notify - 🔔 daily promocode notifications
                             """;
                     break;
 
@@ -92,6 +96,10 @@ public class HoyoBot extends TelegramLongPollingBot {
                 }
                 break;
 
+                case "/notify":
+                    notificationService.sendNotifyCommand(chatId);
+                    return;
+
                 default:
                     replyText = "🤔 Unknown command. Try /start for the list.";
             }
@@ -114,6 +122,16 @@ public class HoyoBot extends TelegramLongPollingBot {
                 String game = data.substring("sub_".length());
                 subscribeService.subscribe(chatId, game);
                 sendText(chatId, "✅ You have subscribed to promocodes for " + capitalizeGameName(game) + "!");
+            }
+
+            if (data.equals("subscribe_notifications")) {
+                notificationService.addNotificationSubscriber(chatId);
+                sendText(chatId, "✅ You have subscribed to daily promocode notifications!");
+            }
+
+            if (data.equals("unsubscribe_notifications")) {
+                notificationService.removeNotificationSubscriber(chatId);
+                sendText(chatId, "❌ You have unsubscribed from daily promocode notifications.");
             }
         }
     }
