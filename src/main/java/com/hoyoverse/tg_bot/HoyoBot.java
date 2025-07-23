@@ -1,6 +1,8 @@
 package com.hoyoverse.tg_bot;
 
 import com.hoyoverse.tg_bot.service.SubscribeService;
+
+import java.util.Calendar;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -8,6 +10,8 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import com.hoyoverse.tg_bot.service.CalendarService;
 import com.hoyoverse.tg_bot.service.NewsService;
 import com.hoyoverse.tg_bot.service.NotificationService;
 import com.hoyoverse.tg_bot.service.PromocodesService;
@@ -20,13 +24,15 @@ public class HoyoBot extends TelegramLongPollingBot {
     private final PromocodesService promocodesService;
     private final NewsService newsService;
     private final NotificationService notificationService;
+    private final CalendarService calendarService;
 
     @Autowired
-    public HoyoBot(PromocodesService promocodesService, NewsService newsService, SubscribeService subscribeService, NotificationService notificationService) {
+    public HoyoBot(PromocodesService promocodesService, NewsService newsService, SubscribeService subscribeService, NotificationService notificationService, CalendarService calendarService) {
         this.promocodesService = promocodesService;
         this.newsService = newsService;
         this.subscribeService = subscribeService;
         this.notificationService = notificationService;
+        this.calendarService = calendarService;
     }
 
     @Override
@@ -54,6 +60,7 @@ public class HoyoBot extends TelegramLongPollingBot {
                             📋 Available commands:
                             /promocodes - 🎁 fresh promoсodes
                             /news - 📰 latest news
+                            /calendar - 📅 current events and banners (Genshin Impact, Star Rail)
                             /subscribe - 🔔 subscribe to promocodes
                             /unsubscribe - 🚫 unsubscribe from promocodes
                             /my_subscriptions - 📦 view your subscriptions
@@ -73,6 +80,10 @@ public class HoyoBot extends TelegramLongPollingBot {
                 case "/news":
                     replyText = "📰 Here are the latest news:\n" + newsService.fetchLatestNews();
                     break;
+                
+                case "/calendar":
+                    calendarService.handleCalendarCommand(chatId);
+                    return;
 
                 case "/subscribe":
                     subscribeService.handleSubscribeCommand(chatId);
@@ -132,6 +143,24 @@ public class HoyoBot extends TelegramLongPollingBot {
             if (data.equals("unsubscribe_notifications")) {
                 notificationService.removeNotificationSubscriber(chatId);
                 sendText(chatId, "❌ You have unsubscribed from daily promocode notifications.");
+            }
+
+            if (data.startsWith("calendar_")) {
+                String[] parts = data.split("_");
+
+                if (parts.length == 2) {
+                    String game = parts[1];
+                    calendarService.handleCategorySelection(chatId, game);
+                    return;
+                }
+
+                if (parts.length == 3) {
+                    String game = parts[1];
+                    String category = parts[2];
+                    String calendar = calendarService.fetchCalendar(game, category, "en");
+                    sendText(chatId, calendar);
+                    return;
+                }
             }
         }
     }
