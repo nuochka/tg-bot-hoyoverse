@@ -78,8 +78,13 @@ public class HoyoBot extends TelegramLongPollingBot {
                     return;
 
                 case "/news":
-                    replyText = "📰 Here are the latest news:\n" + newsService.fetchLatestNews();
-                    break;
+                    SendMessage newsMessage = newsService.buildNewsCommandMessage(chatId);
+                    try {
+                        execute(newsMessage);
+                    } catch (TelegramApiException e) {
+                        e.printStackTrace();
+                    }
+                    return;
                 
                 case "/calendar":
                     calendarService.handleCalendarCommand(chatId);
@@ -126,6 +131,13 @@ public class HoyoBot extends TelegramLongPollingBot {
                 String game = data.substring("codes_".length());
                 String capitalizedName = capitalizeGameName(game);
                 String reply = promocodesService.fetchPromocodes(game, capitalizedName);
+                sendText(chatId, reply);
+            }
+
+            if(data.startsWith("news_")){
+                String game = data.substring("news_".length());
+                String capitalizedName = capitalizeGameName(game);
+                String reply = newsService.fetchLatestNews(game, capitalizedName);
                 sendText(chatId, reply);
             }
 
