@@ -13,7 +13,9 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 @EnableScheduling
 public class TgBotApplication {
 
-    private static final Dotenv dotenv = Dotenv.load();
+    private static final Dotenv dotenv = Dotenv.configure()
+                .ignoreIfMissing()
+                .load();
 
     public static final String TELEGRAM_BOT_NAME = dotenv.get("TELEGRAM_BOT_NAME");
     public static final String TELEGRAM_BOT_TOKEN = dotenv.get("TELEGRAM_BOT_TOKEN");
