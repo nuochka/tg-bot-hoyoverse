@@ -2,13 +2,20 @@ package com.hoyoverse.tg_bot;
 
 import com.hoyoverse.tg_bot.service.SubscribeService;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import com.hoyoverse.tg_bot.service.CalendarService;
@@ -43,6 +50,28 @@ public class HoyoBot extends TelegramLongPollingBot {
     @Override
     public String getBotToken() {
         return TgBotApplication.TELEGRAM_BOT_TOKEN;
+    }
+
+    public void setBotCommands() {
+        List<BotCommand> commands = List.of(
+            new BotCommand("/start", "Start interacting with the bot"),
+            new BotCommand("/promocodes", "🎁 Fresh promocodes"),
+            new BotCommand("/news", "📰 Latest news"),
+            new BotCommand("/calendar", "📅 Current events and banners"),
+            new BotCommand("/subscribe", "🔔 Subscribe to promocodes"),
+            new BotCommand("/unsubscribe", "🚫 Unsubscribe from promocodes"),
+            new BotCommand("/my_subscriptions", "📦 View your subscriptions"),
+            new BotCommand("/notify", "🔔 Daily promocode notifications")
+        );
+
+        SetMyCommands setMyCommands = new SetMyCommands();
+        setMyCommands.setCommands(commands);
+
+        try {
+            execute(setMyCommands);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
